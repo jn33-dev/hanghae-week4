@@ -37,18 +37,19 @@ const postUserSchema = Joi.object({
 router.post("/users", async (req, res) => {
   try {
     const { nickname, password } = await postUserSchema.validateAsync(req.body);
-
-    const existsUsers = await Users.findByPk(nickname);
+    const existsUsers = await Users.findOne({ where: { nickname } });
     if (existsUsers) {
       res.status(412).send({ errorMessage: "중복된 닉네임입니다." });
       return;
     }
-
     await Users.create({ nickname, password });
+
     res.status(201).send({ message: "회원 가입에 성공하였습니다." });
   } catch (err) {
     console.log(err);
-    res.status(400).send({ errorMessage: err.message });
+    if (err.name === "CustomError") {
+      return res.status(err.status).send({ errorMessage: err.message });
+    } else return res.status(400).send({ errorMessage: err.message });
   }
 });
 
