@@ -1,72 +1,66 @@
 const express = require("express");
+const {
+  postPostsSchema,
+  CustomError,
+  isBody,
+} = require("../middlewares/validation-middleware");
 const router = express.Router();
-const Posts = require("../schemas/post");
-const Comments = require("../schemas/comment");
+const { Users, Posts, Comments, Likes } = require("../models");
+authMiddleware = require("../middlewares/auth-middleware.js");
 
-class CustomError {
-  constructor(message, status) {
-    this.name = "CustomError";
-    this.message = message;
-    this.status = status;
-  }
-}
-
-function isBody(req, res) {
-  if (!Object.values(req.body).length || Object.values(req.body).includes("")) {
-    throw new CustomError("데이터 형식이 올바르지 않습니다.", 400);
-  }
-  return;
-}
-
-// 1.게시글 작성 api
-router.post("/", async (req, res) => {
+// ######### 게시글 작성 api ############
+router.post("/", authMiddleware, async (req, res) => {
   try {
+    const { user } = res.locals;
     await isBody(req, res);
-    const { user, password, title, content } = req.body;
-    const createdAt = new Date().toISOString();
-    await Posts.create({
-      createdAt,
-      user,
-      password,
-      title,
-      content,
+    const { title, content } = await postPostsSchema.validateAsync(req.body, {
+      abortEarly: true,
     });
+    await Posts.create({ userId: user.userId, title, content });
     return res.status(201).json({ message: "게시글을 생성하였습니다." });
   } catch (err) {
     console.log(err);
-    return res
-      .status(400)
-      .send({ message: "데이터 형식이 올바르지 않습니다." });
+    if (err.name === "CustomError") {
+      return res.status(err.status).send({ errMessage: err.message });
+    } else
+      return res
+        .status(400)
+        .send({ errorMessage: "게시글 작성에 실패했습니다." });
   }
 });
 
-// 2.게시글 조회 api (postId, user, title, createdAt)
-router.get("/", async (req, res) => {
+// ######## 게시글 조회 #########
+router.get("/", authMiddleware, async (req, res) => {
   try {
-    const data = await Posts.find({}, { password: false, content: false }).sort(
-      { createdAt: -1 }
-    );
+    const data = await Posts.findAll({
+      include: [
+        { model: Users, attributes: ["nickname"] },
+        { model: Likes, as: "Likes", attributes: ["likeId"] },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
     let posts = [];
     data.forEach((e) => {
       posts.push({
-        postId: e["_id"],
-        user: e["user"],
-        title: e["title"],
-        createdAt: e["createdAt"],
+        postId: e.postId,
+        userId: e.userId,
+        nickname: e.User.nickname,
+        title: e.title,
+        createdAt: e.createdAt,
+        updatedAt: e.updatedAt,
+        likes: e.Likes.length,
       });
     });
     return res.status(200).json({ data: posts });
   } catch (err) {
     console.log(err);
-    if (!err.status) {
-      return res
-        .status(400)
-        .send({ message: "데이터 형식이 올바르지 않습니다." });
-    } else return res.status(err.status).send({ message: err.message });
+    return res
+      .status(400)
+      .send({ errorMessage: "게시글 조회에 실패하였습니다." });
   }
 });
 
-// 3.게시글 상세 조회 api (postId, user, title, content, createdAt)
+// ######### 게시글 상세 조회 api #############
 router.get("/:_postId", async (req, res) => {
   try {
     const { _postId } = req.params;

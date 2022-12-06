@@ -43,3 +43,4 @@ CREATE TABLE Likes (
     FOREIGN KEY (userId) REFERENCES Users (userId) ON DELETE CASCADE,
     FOREIGN KEY (nickname) REFERENCES Users (nickname) ON DELETE CASCADE,
 );
+

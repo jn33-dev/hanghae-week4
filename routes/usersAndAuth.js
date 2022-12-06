@@ -1,40 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const { Users, Posts, Comments, Likes } = require("../models");
-const Joi = require("joi");
-
-class CustomError {
-  constructor(message, status) {
-    this.name = "CustomError";
-    this.message = message;
-    this.status = status;
-  }
-}
+const { Users } = require("../models");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
+const env = process.env;
+const {
+  postUserSchema,
+  postAuthSchema,
+} = require("../middlewares/validation-middleware");
+authMiddleware = require("../middlewares/auth-middleware.js");
 
 //######## 회원가입 ############
-const postUserSchema = Joi.object({
-  nickname: Joi.string()
-    .alphanum()
-    .min(3)
-    .required()
-    .error(() => {
-      throw new CustomError("ID의 형식이 일치하지 않습니다.", 412);
-    }),
-
-  password: Joi.string()
-    .min(4)
-    .invalid(Joi.ref("nickname"))
-    .required()
-    .error(() => {
-      throw new CustomError("password의 형식이 일치하지 않습니다.", 412);
-    }),
-
-  confirmPassword: Joi.valid(Joi.ref("password")).error(() => {
-    throw new CustomError("password가 일치하지 않습니다.", 412);
-  }),
-});
-
-router.post("/users", async (req, res) => {
+router.post("/signup", async (req, res) => {
   try {
     const { nickname, password } = await postUserSchema.validateAsync(req.body);
     const existsUsers = await Users.findOne({ where: { nickname } });
@@ -49,8 +26,48 @@ router.post("/users", async (req, res) => {
     console.log(err);
     if (err.name === "CustomError") {
       return res.status(err.status).send({ errorMessage: err.message });
-    } else return res.status(400).send({ errorMessage: err.message });
+    } else
+      return res
+        .status(400)
+        .send({ errorMessage: "요청한 데이터 형식이 올바르지 않습니다." });
   }
+});
+
+//######## 로그인 ############
+router.post("/login", async (req, res) => {
+  try {
+    const { nickname, password } = await postAuthSchema.validateAsync(req.body);
+    const user = await Users.findOne({ where: { nickname } });
+
+    if (!user || password !== user.password) {
+      res
+        .status(412)
+        .send({ errorMessage: "닉네임 또는 패스워드를 확인해주세요." });
+      return;
+    }
+
+    res.send({ token: jwt.sign({ userId: user.userId }, env.JWT_KEY) });
+  } catch (err) {
+    console.log(err);
+    if (err.name === "CustomError") {
+      return res.status(err.status).send({ errorMessage: err.message });
+    } else
+      return res
+        .status(400)
+        .send({ errorMessage: "요청한 데이터 형식이 올바르지 않습니다." });
+  }
+});
+
+// ####### 유저 내 정보 조회 ########
+
+router.get("/login/me", authMiddleware, async (req, res) => {
+  const { user } = res.locals;
+  res.send({
+    users: {
+      userId: user.userId,
+      nickname: user.nickname,
+    },
+  });
 });
 
 module.exports = router;
