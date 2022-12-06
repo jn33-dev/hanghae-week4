@@ -61,10 +61,20 @@ function isBody(req, res) {
   return;
 }
 
+const postCommentsSchema = Joi.object({
+  content: Joi.string()
+    .min(2)
+    .required()
+    .error(() => {
+      throw new CustomError("데이터 형식이 일치하지 않습니다.", 412);
+    }),
+});
+
 module.exports = {
   CustomError,
   postUserSchema,
   postAuthSchema,
   postPostsSchema,
   isBody,
+  postCommentsSchema,
 };

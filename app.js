@@ -23,9 +23,8 @@ app.use("/", userAndAuthRouter);
 const postsRouter = require("./routes/posts");
 app.use("/posts", postsRouter);
 
-// const commentsRouter = require("./routes/comments");
-// const router = require("./routes/comments");
-// app.use("/comments", commentsRouter);
+const commentsRouter = require("./routes/comments");
+app.use("/comments", commentsRouter);
 
 app.listen(port, () => {
   console.log(port, "포트로 서버가 잘 열렸습니다!");
