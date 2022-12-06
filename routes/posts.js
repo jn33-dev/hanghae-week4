@@ -61,47 +61,39 @@ router.get("/", authMiddleware, async (req, res) => {
 });
 
 // ######### 게시글 상세 조회 api #############
-router.get("/:_postId", async (req, res) => {
+router.get("/:postId", async (req, res) => {
   try {
-    const { _postId } = req.params;
-    const data = await Posts.findOne(
-      {
-        _id: { $eq: _postId },
-      },
-      { password: false }
-    );
+    const { postId } = req.params;
+    const data = await Posts.findOne({
+      where: { postId },
+      include: [
+        { model: Users, attributes: ["nickname"] },
+        { model: Likes, as: "Likes", attributes: ["likeId"] },
+        {
+          model: Comments,
+          as: "Comments",
+          order: [["createdAt", "DESC"]],
+          attributes: ["commentId", "content", "createdAt", "updatedAt"],
+          include: [{ model: Users, attributes: ["nickname"] }],
+        },
+      ],
+    });
     if (data === null)
-      throw new CustomError("게시글 조회에 실패했습니다.", 404);
-
-    // 해당 게시글 댓글 조회
-    const comment = await Comments.find(
-      { postId: { $eq: _postId } },
-      { password: false }
-    ).sort({ createdAt: -1 });
-    comments = [];
-    if (comment.length) {
-      comment.forEach((e) => {
-        comments.push({
-          postId: e["_id"],
-          user: e["user"],
-          content: e["content"],
-          createdAt: e["createdAt"],
-        });
-      });
-    } else {
-      comments.push("유효한 댓글 데이터가 없습니다.");
-    }
+      throw new CustomError("게시글 조회에 실패했습니다.", 400);
 
     // 게시글 상세조회 + 댓글 목록을 res로 쏴주기
     return res.status(200).json({
       data: {
-        postId: data["_id"],
-        user: data["user"],
-        title: data["title"],
-        content: data["content"],
-        createdAt: data["createdAt"],
+        postId: data.postId,
+        userId: data.userId,
+        nickname: data.User.nickname,
+        title: data.title,
+        content: data.content,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        likes: data.Likes.length,
+        comments: data.Comments,
       },
-      comments,
     });
   } catch (err) {
     console.log(err);
