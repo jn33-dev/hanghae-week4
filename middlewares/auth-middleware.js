@@ -15,8 +15,11 @@ module.exports = async (req, res, next) => {
 
   try {
     const { userId } = jwt.verify(authToken, env.JWT_KEY);
-    await Users.findOne({ where: { userId } }).then((user) => {
-      res.locals.user = { userId: user.userId, nickname: user.nickname };
+    await Users.findOne({
+      where: { userId },
+      attributes: { exclude: ["password"] },
+    }).then((user) => {
+      res.locals.user = user;
       next();
     });
   } catch (err) {

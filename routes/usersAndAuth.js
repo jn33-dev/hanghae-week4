@@ -63,10 +63,7 @@ router.post("/login", async (req, res) => {
 router.get("/login/me", authMiddleware, async (req, res) => {
   const { user } = res.locals;
   res.send({
-    users: {
-      userId: user.userId,
-      nickname: user.nickname,
-    },
+    user,
   });
 });
 

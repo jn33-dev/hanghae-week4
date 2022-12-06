@@ -1,4 +1,5 @@
 const express = require("express");
+const authMiddleware = require("../middlewares/auth-middleware.js");
 const {
   postPostsSchema,
   CustomError,
@@ -6,7 +7,6 @@ const {
 } = require("../middlewares/validation-middleware");
 const router = express.Router();
 const { Users, Posts, Comments, Likes } = require("../models");
-authMiddleware = require("../middlewares/auth-middleware.js");
 
 // ######### 게시글 작성 api ############
 router.post("/", authMiddleware, async (req, res) => {
@@ -20,7 +20,7 @@ router.post("/", authMiddleware, async (req, res) => {
     return res.status(201).json({ message: "게시글을 생성하였습니다." });
   } catch (err) {
     console.log(err);
-    if (err.name === "CustomError") {
+    if (err.status) {
       return res.status(err.status).send({ errMessage: err.message });
     } else
       return res
@@ -61,7 +61,7 @@ router.get("/", authMiddleware, async (req, res) => {
 });
 
 // ######### 게시글 상세 조회 api #############
-router.get("/:postId", async (req, res) => {
+router.get("/:postId", authMiddleware, async (req, res) => {
   try {
     const { postId } = req.params;
     const data = await Posts.findOne({
@@ -97,55 +97,62 @@ router.get("/:postId", async (req, res) => {
     });
   } catch (err) {
     console.log(err);
-    if (!err.status) {
-      return res
-        .status(400)
-        .send({ message: "데이터 형식이 올바르지 않습니다." });
-    } else return res.status(err.status).send({ message: err.message });
+    return res
+      .status(400)
+      .send({ message: "데이터 형식이 올바르지 않습니다." });
   }
 });
 
-// 4.게시글 수정 api (postId, password, title, content)
-router.put("/:_postId", async (req, res) => {
+// ######### 게시글 수정 api #############
+router.put("/:postId", authMiddleware, async (req, res) => {
   try {
+    const { user } = res.locals;
     await isBody(req, res);
-    const { _postId } = req.params;
-    const { password, title, content } = req.body;
-    const data = await Posts.findOneAndUpdate(
-      { _id: { $eq: _postId }, password: { $eq: password } },
-      { $set: { title, content } }
-    );
-    if (data === null) {
-      throw new CustomError("게시글 조회에 실패했습니다.", 404);
-    }
-
+    const { postId } = req.params;
+    const { title, content } = await postPostsSchema.validateAsync(req.body, {
+      abortEarly: true,
+    });
+    const data = await Posts.findOne({
+      where: { postId, userId: user.userId },
+    });
+    if (data === null)
+      throw new CustomError("게시글이 정상적으로 수정되지 않았습니다.", 401);
+    await Posts.update({ title, content }, { where: { postId } });
     return res.status(200).send({ message: "게시글을 수정하였습니다." });
   } catch (err) {
     console.log(err);
-    if (!err.status) {
-      return res.status(404).send({ message: "게시글 조회에 실패했습니다." });
-    } else return res.status(err.status).send({ message: err.message });
+    if (err.status) {
+      return res.status(err.status).send({ errMessage: err.message });
+    } else
+      return res
+        .status(400)
+        .send({ errorMessage: "게시글 수정에 실패했습니다." });
   }
 });
 
 // 5.게시글 삭제 api (postId, password)
-router.delete("/:_postId", async (req, res) => {
+router.delete("/:postId", authMiddleware, async (req, res) => {
   try {
-    await isBody(req, res);
-    const { _postId } = req.params;
-    const { password } = req.body;
-    const data = await Posts.findOneAndDelete({
-      _id: { $eq: _postId },
-      password: { $eq: password },
+    const { user } = res.locals;
+    const { postId } = req.params;
+    const data = await Posts.findOne({
+      where: { postId },
     });
     if (data === null)
-      throw new CustomError("게시글 조회에 실패했습니다.", 404);
+      throw new CustomError("게시글이 존재하지 않습니다.", 404);
+    const delPost = await Posts.destroy({
+      where: { postId, userId: user.userId },
+    });
+    if (delPost === 0) {
+      throw new CustomError("게시글이 정상적으로 삭제되지 않았습니다.", 401);
+    }
     return res.status(200).send({ message: "게시글을 삭제하였습니다." });
   } catch (err) {
     console.log(err);
-    if (!err.status) {
-      return res.status(404).send({ message: "게시글 조회 실패" });
-    } else return res.status(err.status).send({ message: err.message });
+    if (err.status) {
+      return res.status(err.status).send({ message: err.message });
+    } else
+      return res.status(400).send({ message: "게시글 삭제에 실패하였습니다." });
   }
 });
 
