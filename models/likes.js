@@ -20,6 +20,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       postId: {
         type: DataTypes.INTEGER,
+        allowNull: false,
         references: {
           model: "Posts",
           key: "postId",
@@ -28,6 +29,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       userId: {
         type: DataTypes.INTEGER,
+        allowNull: false,
         references: {
           model: "User",
           key: "userId",

@@ -2,13 +2,13 @@ const express = require("express");
 const router = express.Router();
 const { Users } = require("../models");
 const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 const env = process.env;
 const {
   postUserSchema,
   postAuthSchema,
 } = require("../middlewares/validation-middleware");
-authMiddleware = require("../middlewares/auth-middleware.js");
 
 //######## 회원가입 ############
 router.post("/signup", async (req, res) => {
@@ -34,6 +34,17 @@ router.post("/signup", async (req, res) => {
 });
 
 //######## 로그인 ############
+let tokenObject = {};
+function createAccessToken(id) {
+  return jwt.sign({ userId: id }, env.JWT_KEY, {
+    expiresIn: "100s",
+  });
+}
+function createRefreshToken() {
+  return jwt.sign({}, env.JWT_KEY, {
+    expiresIn: "7d",
+  });
+}
 router.post("/login", async (req, res) => {
   try {
     const { nickname, password } = await postAuthSchema.validateAsync(req.body);
@@ -46,7 +57,16 @@ router.post("/login", async (req, res) => {
       return;
     }
 
-    res.send({ token: jwt.sign({ userId: user.userId }, env.JWT_KEY) });
+    const accessToken = createAccessToken(user.userId);
+    const refreshToken = createRefreshToken();
+
+    tokenObject[refreshToken] = user.userId;
+    res.cookie("accessToken", accessToken);
+    res.cookie("refreshToken", refreshToken);
+
+    return res
+      .status(200)
+      .send({ message: "Token이 정상적으로 발급되었습니다." });
   } catch (err) {
     console.log(err);
     if (err.name === "CustomError") {
@@ -58,13 +78,4 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ####### 유저 내 정보 조회 ########
-
-router.get("/login/me", authMiddleware, async (req, res) => {
-  const { user } = res.locals;
-  res.send({
-    user,
-  });
-});
-
-module.exports = router;
+module.exports = { router, tokenObject, createAccessToken, createRefreshToken };
