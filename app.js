@@ -4,9 +4,10 @@ const app = express();
 const port = 3000;
 const { Op } = require("sequelize");
 const { Users, Posts, Comments, Likes } = require("./models");
+const cookieParser = require("cookie-parser");
 
 app.use(express.json());
-
+app.use(cookieParser());
 //####### req.body에서 json 형식 안 지켜졌을 때, Bison Error 처리########
 app.use((error, request, response, next) => {
   if (error instanceof SyntaxError)

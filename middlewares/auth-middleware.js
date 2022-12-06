@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const { Users } = require("../models");
 require("dotenv").config();
 const env = process.env;
@@ -7,30 +8,6 @@ const {
   createAccessToken,
   createRefreshToken,
 } = require("../routes/usersAndAuth");
-
-// 일단 구현해보고, refresh token으로 확인되면 access token 발급하는 방식 추가
-// module.exports = async (req, res, next) => {
-//   const { authorization } = req.headers;
-//   const [authType, authToken] = (authorization || "").split(" ");
-
-//   if (!authToken || authType !== "Bearer") {
-//     res.status(401).send({ errorMessage: "로그인 후 이용 가능합니다." });
-//     return;
-//   }
-
-//   try {
-//     const { userId } = jwt.verify(authToken, env.JWT_KEY);
-//     await Users.findOne({
-//       where: { userId },
-//       attributes: { exclude: ["password"] },
-//     }).then((user) => {
-//       res.locals.user = user;
-//       next();
-//     });
-//   } catch (err) {
-//     res.status(401).send({ errorMessage: "로그인 후 이용 가능합니다." });
-//   }
-// };
 
 // accessToken과 refreshToken을 검증하고, accessToken 만료면, refreshToken으로 accessToken 새로 발급 후 accessToken의 payload에서 userId 받아 오기
 module.exports = async (req, res, next) => {
@@ -52,6 +29,7 @@ module.exports = async (req, res, next) => {
 
     if (!isAccessTokenValid) {
       const accessTokenId = tokenObject[refreshToken];
+      console.log("tokenObject", tokenObject);
       if (!accessTokenId)
         return res.status(419).json({
           message: "Refresh Token의 정보가 서버에 존재하지 않습니다.",

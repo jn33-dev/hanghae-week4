@@ -59,6 +59,7 @@ router.post("/login", async (req, res) => {
 
     const accessToken = createAccessToken(user.userId);
     const refreshToken = createRefreshToken();
+    console.log("typeof token", typeof accessToken);
 
     tokenObject[refreshToken] = user.userId;
     res.cookie("accessToken", accessToken);
