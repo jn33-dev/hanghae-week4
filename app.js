@@ -17,7 +17,7 @@ app.use((error, request, response, next) => {
 const indexRouter = require("./routes/index");
 app.use("/", indexRouter);
 
-const { router: userAndAuthRouter } = require("./routes/usersAndAuth");
+const userAndAuthRouter = require("./routes/usersAndAuth");
 app.use("/", userAndAuthRouter);
 
 const postsRouter = require("./routes/posts");
