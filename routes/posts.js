@@ -63,9 +63,10 @@ router.get("/", async (req, res) => {
 
 // ######### 게시글 상세 조회 api #############
 // 로그인 필요 없음
-router.get("/:postId", async (req, res) => {
+router.get("/:postId", async (req, res, next) => {
   try {
     const { postId } = req.params;
+    if (postId === "like") return next();
     const data = await Posts.findOne({
       where: { postId },
       include: [
@@ -176,33 +177,73 @@ router.get("/like", authMiddleware, async (req, res) => {
     const data = await Likes.findAll({
       where: { userId: user.userId },
       include: [
-        { model: Users, attributes: ["nickname"] },
         {
           model: Posts,
-          attributes: { exclude: ["content"] },
-          include: { model: Likes, as: "Likes", attributes: ["likeId"] },
+          attributes: { exclude: ["content", "postId"] },
+          include: [
+            { model: Likes, as: "Likes", attributes: ["likeId"] },
+            { model: Users, attributes: ["nickname"] },
+          ],
         },
       ],
-      order: [["createdAt", "DESC"]],
     });
     let posts = [];
     data.forEach((e) => {
       posts.push({
         postId: e.postId,
-        userId: e.userId,
-        nickname: e.User.nickname,
-        title: e.title,
+        userId: e.Post.userId,
+        nickname: e.Post.User.nickname,
+        title: e.Post.title,
         createdAt: e.createdAt,
         updatedAt: e.updatedAt,
-        likes: e.Likes.length,
+        likes: e.Post.Likes.length,
       });
     });
+    posts.sort((a, b) => b.likes - a.likes);
+
     return res.status(200).json({ data: posts });
   } catch (err) {
     console.log(err);
-    return res
-      .status(400)
-      .send({ errorMessage: "게시글 조회에 실패하였습니다." });
+    return res.status(400).send({ errorMessage: "catch 블럭의 매뉴얼 에러" });
+  }
+});
+
+// ######### 게시글 좋아요 #######
+router.put("/:postId/like", authMiddleware, async (req, res) => {
+  try {
+    const { user } = res.locals;
+    console.log("user.userId:", user.userId);
+    const { postId } = req.params;
+    const post = await Posts.findOne({
+      where: { postId },
+      attributes: ["postID"],
+    });
+    if (post === null)
+      throw new CustomError("게시글이 존재하지 않습니다.", 404);
+    // 게시글이 존재하는 경우, 좋아요를 클릭한 유저가 기존에 좋아요를 눌렀는지 확인하고, 눌렀으면 삭제, 누르지 않았으면 생성
+    const isLike = await Likes.findAll({
+      where: { postId },
+      attributes: ["userId"],
+    });
+    if (isLike.filter((e) => e.userId === user.userId).length) {
+      await Likes.destroy({ where: { postId, userId: user.userId } });
+      return res
+        .status(201)
+        .send({ message: "게시글의 좋아요를 취소하였습니다." });
+    } else {
+      await Likes.create({ postId, userId: user.userId });
+      return res
+        .status(201)
+        .send({ message: "게시물에 좋아요를 등록하였습니다." });
+    }
+  } catch (err) {
+    console.log(err);
+    if (err.status) {
+      return res.status(err.status).send({ message: err.message });
+    } else
+      return res
+        .status(400)
+        .send({ message: "게시글 좋아요에 실패하였습니다." });
   }
 });
 
