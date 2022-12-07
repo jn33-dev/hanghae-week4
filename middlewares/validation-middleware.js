@@ -19,16 +19,23 @@ const postUserSchema = Joi.object({
 
   password: Joi.string()
     .min(4)
-    .invalid(Joi.ref("nickname"))
     .required()
     .error(() => {
       throw new CustomError("패스워드 형식이 일치하지 않습니다.", 412);
     }),
 
-  confirmPassword: Joi.valid(Joi.ref("password")).error(() => {
-    throw new CustomError("패스워드가 일치하지 않습니다.", 412);
-  }),
+  confirmPassword: Joi.valid(Joi.ref("password"))
+    .required()
+    .error(() => {
+      throw new CustomError("패스워드가 일치하지 않습니다.", 412);
+    }),
 });
+
+function isPasswordIncludesNickname(password, nickname) {
+  if (password.includes(nickname))
+    throw new CustomError("패스워드에 닉네임이 포함되어 있습니다.", 412);
+  return;
+}
 
 const postAuthSchema = Joi.object({
   nickname: Joi.required().error(() => {
@@ -73,6 +80,7 @@ const postCommentsSchema = Joi.object({
 module.exports = {
   CustomError,
   postUserSchema,
+  isPasswordIncludesNickname,
   postAuthSchema,
   postPostsSchema,
   isBody,

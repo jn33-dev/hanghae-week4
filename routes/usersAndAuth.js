@@ -6,6 +6,7 @@ const cookieParser = require("cookie-parser");
 require("dotenv").config();
 const env = process.env;
 const {
+  isPasswordIncludesNickname,
   postUserSchema,
   postAuthSchema,
 } = require("../middlewares/validation-middleware");
@@ -14,6 +15,7 @@ const {
 router.post("/signup", async (req, res) => {
   try {
     const { nickname, password } = await postUserSchema.validateAsync(req.body);
+    isPasswordIncludesNickname(password, nickname);
     const existsUsers = await Users.findOne({ where: { nickname } });
     if (existsUsers) {
       res.status(412).send({ errorMessage: "중복된 닉네임입니다." });
