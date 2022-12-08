@@ -6,10 +6,8 @@ const cookieParser = require("cookie-parser");
 
 app.use(express.json());
 app.use(cookieParser());
-//####### req.body에서 json 형식 안 지켜졌을 때, Bison Error 처리########
 
-const indexRouter = require("./routes/index");
-app.use("/", indexRouter);
+app.use(require("./routes/index"));
 
 app.use((error, req, res, next) => {
   if (error instanceof SyntaxError)

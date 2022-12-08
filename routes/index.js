@@ -5,7 +5,7 @@ const user = require("./user");
 const postsRouter = require("./posts");
 const commentsRouter = require("./comments");
 
-router.get((req, res) => {
+router.get("/", (req, res) => {
   res
     .status(200)
     .send("항해 10기 E반 최예나의 4주차 Node.js 숙련주차 개인과제");
