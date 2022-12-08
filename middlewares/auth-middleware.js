@@ -3,24 +3,37 @@ const cookieParser = require("cookie-parser");
 const { Users } = require("../models");
 require("dotenv").config();
 const env = process.env;
-const {
-  tokenObject,
-  createAccessToken,
-  createRefreshToken,
-} = require("../routes/usersAndAuth");
+const { tokenObject, createToken } = require("../routes/user");
+const { createToken } = require("../util/jwtToken");
+const throwCustomError = require("../error/customError.js");
 
-// accessToken과 refreshToken을 검증하고, accessToken 만료면, refreshToken으로 accessToken 새로 발급 후 accessToken의 payload에서 userId 받아 오기
+const validateToken = function (token) {
+  try {
+    jwt.verify(token, env.JWT_KEY); // JWT를 검증합니다.
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+const getAccessTokenPayload = function (accessToken) {
+  try {
+    const payload = jwt.verify(accessToken, env.JWT_KEY); // JWT에서 Payload를 가져옵니다.
+    return payload;
+  } catch (error) {
+    return null;
+  }
+};
+
 module.exports = async (req, res, next) => {
   try {
     const { accessToken, refreshToken } = req.cookies;
 
     if (!accessToken || !refreshToken) {
-      res.status(401).send({ errorMessage: "로그인 후 이용 가능합니다." });
-      return;
+      return throwCustomError("로그인 후 이용 가능합니다.", 401);
     }
 
-    const isAccessTokenValid = validateAccessToken(accessToken);
-    const isRefreshTokenValid = validateRefreshToken(refreshToken);
+    const isAccessTokenValid = validateToken(accessToken);
+    const isRefreshTokenValid = validateToken(refreshToken);
 
     if (!isRefreshTokenValid)
       return res
@@ -35,7 +48,7 @@ module.exports = async (req, res, next) => {
           message: "Refresh Token의 정보가 서버에 존재하지 않습니다.",
         });
 
-      const newAccessToken = createAccessToken(accessTokenId);
+      const newAccessToken = createToken(accessTokenId);
       res.cookie("accessToken", newAccessToken);
       return res.json({ message: "AccessToken을 새롭게 발급하였습니다." });
     }
@@ -59,33 +72,3 @@ module.exports = async (req, res, next) => {
       .send({ errorMessage: "알 수 없는 에러가 발생했습니다." });
   }
 };
-
-// Access Token을 검증합니다.
-function validateAccessToken(accessToken) {
-  try {
-    jwt.verify(accessToken, env.JWT_KEY); // JWT를 검증합니다.
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-// Refresh Token을 검증합니다.
-function validateRefreshToken(refreshToken) {
-  try {
-    jwt.verify(refreshToken, env.JWT_KEY); // JWT를 검증합니다.
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-// Access Token의 Payload를 가져옵니다.
-function getAccessTokenPayload(accessToken) {
-  try {
-    const payload = jwt.verify(accessToken, env.JWT_KEY); // JWT에서 Payload를 가져옵니다.
-    return payload;
-  } catch (error) {
-    return null;
-  }
-}

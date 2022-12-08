@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const { Users } = require("../models");
 const jwt = require("jsonwebtoken");
-const cookieParser = require("cookie-parser");
 require("dotenv").config();
 const env = process.env;
 const {
@@ -10,6 +9,8 @@ const {
   postUserSchema,
   postAuthSchema,
 } = require("../middlewares/validation-middleware");
+const { createToken, tokenObject } = require("../util/jwtToken");
+const throwCustomError = require("../error/customError");
 
 //######## 회원가입 ############
 router.post("/signup", async (req, res) => {
@@ -18,7 +19,8 @@ router.post("/signup", async (req, res) => {
     isPasswordIncludesNickname(password, nickname);
     const existsUsers = await Users.findOne({ where: { nickname } });
     if (existsUsers) {
-      res.status(412).send({ errorMessage: "중복된 닉네임입니다." });
+      return throwCustomError("중복된 닉네임입니다.", 412);
+      res.status(412).send({ errorMessage:  });
       return;
     }
     await Users.create({ nickname, password });
@@ -36,32 +38,17 @@ router.post("/signup", async (req, res) => {
 });
 
 //######## 로그인 ############
-let tokenObject = {};
-function createAccessToken(id) {
-  return jwt.sign({ userId: id }, env.JWT_KEY, {
-    expiresIn: "100s",
-  });
-}
-function createRefreshToken() {
-  return jwt.sign({}, env.JWT_KEY, {
-    expiresIn: "7d",
-  });
-}
 router.post("/login", async (req, res) => {
   try {
     const { nickname, password } = await postAuthSchema.validateAsync(req.body);
     const user = await Users.findOne({ where: { nickname } });
 
     if (!user || password !== user.password) {
-      res
-        .status(412)
-        .send({ errorMessage: "닉네임 또는 패스워드를 확인해주세요." });
-      return;
+      return throwCustomError("닉네임 또는 패스워드를 확인해주세요.", 412);
     }
 
-    const accessToken = createAccessToken(user.userId);
-    const refreshToken = createRefreshToken();
-    console.log("typeof token", typeof accessToken);
+    const accessToken = createToken(user.userId);
+    const refreshToken = createToken("refreshToken");
 
     tokenObject[refreshToken] = user.userId;
     res.cookie("accessToken", accessToken);
@@ -81,4 +68,4 @@ router.post("/login", async (req, res) => {
   }
 });
 
-module.exports = { router, tokenObject, createAccessToken, createRefreshToken };
+module.exports = router;
