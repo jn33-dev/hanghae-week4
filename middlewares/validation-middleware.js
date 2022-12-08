@@ -1,5 +1,5 @@
 const Joi = require("joi");
-const throwCustomError = require("../error/customError.js");
+const throwCustomError = require("../error/errorFunction");
 
 const postUserSchema = Joi.object({
   nickname: Joi.string()

@@ -6,8 +6,8 @@ class CustomError extends Error {
   }
 }
 
-function throwCustomError(message, status) {
-  throw new CustomError();
-}
+const throwCustomError = (message, status) => {
+  throw new CustomError(message, status);
+};
 
 module.exports = throwCustomError;
