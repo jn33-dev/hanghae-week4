@@ -1,12 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../middlewares/auth-middleware.js");
-const {
-  postCommentsSchema,
-  CustomError,
-  isBody,
-} = require("../middlewares/validation-middleware");
-const { Users, Posts, Comments, Likes } = require("../models");
+const { postCommentsSchema } = require("../middlewares/validation-middleware");
+const throwCustomError = require("../error/errorFunction");
+const { Users, Posts, Comments } = require("../models");
 
 // ######### 댓글 작성 api ##############
 router.post("/:postId", authMiddleware, async (req, res) => {
@@ -20,7 +17,7 @@ router.post("/:postId", authMiddleware, async (req, res) => {
       where: { postId },
     });
     if (post === null) {
-      throw new CustomError("존재하지 않는 게시글입니다.", 404);
+      throwCustomError("존재하지 않는 게시글입니다.", 404);
     }
     await Comments.create({ userId: user.userId, postId, content });
     return res.status(201).json({ message: "댓글을 작성하였습니다." });
@@ -74,13 +71,13 @@ router.put("/:commentId", authMiddleware, async (req, res) => {
     const data = await Comments.findOne({
       where: { commentId, userId: user.userId },
     });
-    if (data === null) throw new CustomError("댓글이 존재하지 않습니다.", 404);
+    if (data === null) throwCustomError("댓글이 존재하지 않습니다.", 404);
     const editComment = await Comments.update(
       { content },
       { where: { commentId } }
     );
     if (editComment === 0)
-      throw new CustomError("댓글 수정이 정상적으로 처리되지 않았습니다.", 400);
+      throwCustomError("댓글 수정이 정상적으로 처리되지 않았습니다.", 400);
     return res.status(200).send({ message: "댓글을 수정하였습니다." });
   } catch (err) {
     console.log(err);
@@ -100,12 +97,12 @@ router.delete("/:commentId", authMiddleware, async (req, res) => {
     const data = await Comments.findOne({
       where: { commentId, userId: user.userId },
     });
-    if (data === null) throw new CustomError("댓글이 존재하지 않습니다.", 404);
+    if (data === null) throwCustomError("댓글이 존재하지 않습니다.", 404);
     const delComment = await Comments.destroy({
       where: { commentId, userId: user.userId },
     });
     if (delComment === 0)
-      throw new CustomError("댓글 삭제가 정상적으로 처리되지 않았습니다.", 401);
+      throwCustomError("댓글 삭제가 정상적으로 처리되지 않았습니다.", 401);
     return res.status(200).send({ message: "댓글을 삭제하였습니다." });
   } catch (err) {
     console.log(err);

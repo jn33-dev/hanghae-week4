@@ -3,9 +3,9 @@ const router = express.Router();
 const authMiddleware = require("../middlewares/auth-middleware.js");
 const {
   postPostsSchema,
-  CustomError,
   isBody,
 } = require("../middlewares/validation-middleware");
+const throwCustomError = require("../error/errorFunction");
 const { Users, Posts, Comments, Likes } = require("../models");
 
 // ######### 게시글 작성 api ############
@@ -81,8 +81,7 @@ router.get("/:postId", async (req, res, next) => {
         },
       ],
     });
-    if (data === null)
-      throw new CustomError("게시글 조회에 실패했습니다.", 400);
+    if (data === null) throwCustomError("게시글 조회에 실패했습니다.", 400);
     let comments = [];
     if (data.Comments.length) {
       data.Comments.forEach((e) => {
@@ -130,7 +129,7 @@ router.put("/:postId", authMiddleware, async (req, res) => {
       where: { postId, userId: user.userId },
     });
     if (data === null)
-      throw new CustomError("게시글이 정상적으로 수정되지 않았습니다.", 401);
+      throwCustomError("게시글이 정상적으로 수정되지 않았습니다.", 401);
     await Posts.update({ title, content }, { where: { postId } });
     return res.status(200).send({ message: "게시글을 수정하였습니다." });
   } catch (err) {
@@ -152,13 +151,12 @@ router.delete("/:postId", authMiddleware, async (req, res) => {
     const data = await Posts.findOne({
       where: { postId },
     });
-    if (data === null)
-      throw new CustomError("게시글이 존재하지 않습니다.", 404);
+    if (data === null) throwCustomError("게시글이 존재하지 않습니다.", 404);
     const delPost = await Posts.destroy({
       where: { postId, userId: user.userId },
     });
     if (delPost === 0) {
-      throw new CustomError("게시글이 정상적으로 삭제되지 않았습니다.", 401);
+      throwCustomError("게시글이 정상적으로 삭제되지 않았습니다.", 401);
     }
     return res.status(200).send({ message: "게시글을 삭제하였습니다." });
   } catch (err) {
@@ -204,7 +202,9 @@ router.get("/like", authMiddleware, async (req, res) => {
     return res.status(200).json({ data: posts });
   } catch (err) {
     console.log(err);
-    return res.status(400).send({ errorMessage: "catch 블럭의 매뉴얼 에러" });
+    return res
+      .status(400)
+      .send({ errorMessage: "좋아요 게시글 조회에 실패하였습니다." });
   }
 });
 
@@ -218,8 +218,7 @@ router.put("/:postId/like", authMiddleware, async (req, res) => {
       where: { postId },
       attributes: ["postID"],
     });
-    if (post === null)
-      throw new CustomError("게시글이 존재하지 않습니다.", 404);
+    if (post === null) throwCustomError("게시글이 존재하지 않습니다.", 404);
     // 게시글이 존재하는 경우, 좋아요를 클릭한 유저가 기존에 좋아요를 눌렀는지 확인하고, 눌렀으면 삭제, 누르지 않았으면 생성
     const isLike = await Likes.findAll({
       where: { postId },
